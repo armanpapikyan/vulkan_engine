@@ -202,6 +202,8 @@ namespace Presentation
 	void PresentationTarget::releaseAllResources(VkDevice device)
 	{
 		m_globalPipelineState->release(device);
+		m_globalPipelineState = nullptr;
+
 		releaseSwapChain(device);
 
 		{

@@ -99,14 +99,14 @@ void Scene::release(VkDevice device, VmaAllocator allocator)
 	for (auto& tex : m_textures)
 	{
 		tex->release(device);
-		tex.release();
+		tex = nullptr;
 	}
 	m_textures.clear();
 
 	for (auto& mat : m_graphicsMaterials)
 	{
 		mat->release(device);
-		mat.release();
+		mat = nullptr;
 	}
 	m_graphicsMaterials.clear();
 

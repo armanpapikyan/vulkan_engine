@@ -71,7 +71,7 @@ public:
 
 private:
 	friend class boost::serialization::access;
-	Mesh();;
+	Mesh();
 	Mesh(size_t vertN, size_t indexN);
 
 	std::vector<MeshDescriptor::TVertexPosition> m_positions;
