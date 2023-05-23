@@ -9,9 +9,9 @@
 #include "VkTypes/VkShader.h"
 
 VkMaterial::VkMaterial(const VkShader& shader, const VkTexture2D& texture, const VkPipeline pipeline, const VkPipelineLayout pipelineLayout, const VkDescriptorSetLayout descriptorSetLayout, std::array<VkDescriptorSet, SWAPCHAIN_IMAGE_COUNT>& descriptorSets)
-	: shader(&shader), texture(&texture), variant(pipeline, pipelineLayout, descriptorSetLayout, descriptorSets)
-{
-}
+	: shader(&shader), texture(&texture), variant(pipeline, pipelineLayout, descriptorSetLayout, descriptorSets) { }
+
+const VkMaterialVariant& VkMaterial::getMaterialVariant() const { return variant; }
 
 void VkMaterial::release(VkDevice device)
 {
@@ -19,6 +19,30 @@ void VkMaterial::release(VkDevice device)
 	texture = nullptr;
 
 	variant.release(device);
+}
+
+Material::Material(uint32_t shaderIdentifier, const TextureSource& source) :
+	m_shaderIdentifier(shaderIdentifier), m_textureParameters(source) {
+	calculateHash();
+}
+
+Material::Material(uint32_t shaderIdentifier, TextureSource&& source) :
+	m_shaderIdentifier(shaderIdentifier), m_textureParameters(source) {
+	calculateHash();
+}
+
+Material::Material() : m_shaderIdentifier(), m_textureParameters() { calculateHash(); }
+
+void Material::calculateHash() { m_hash = std::hash<std::string>()(m_textureParameters.path); }
+
+const TextureSource& Material::getTextureSource() const { return m_textureParameters; }
+uint32_t Material::getShaderIdentifier() const { return m_shaderIdentifier; }
+size_t Material::getHash() const { return m_hash; }
+
+bool Material::operator ==(const Material& other) const
+{
+	return m_shaderIdentifier == other.m_shaderIdentifier &&
+		m_textureParameters == other.m_textureParameters;
 }
 
 // WRITE
@@ -59,4 +83,18 @@ void Material::serialize(boost::archive::binary_iarchive& ar, const unsigned int
 	ar& m_textureParameters.generateTheMips;
 
 	ar& m_hash;
+}
+
+TextureSource::TextureSource() : path(), format(VK_FORMAT_R8G8B8A8_SRGB), generateTheMips(true) { }
+TextureSource::TextureSource(std::string&& path, VkFormat format, bool generateMips) : path(std::move(path)), format(format), generateTheMips(generateMips) { }
+
+bool TextureSource::operator ==(const TextureSource& other) const
+{
+	return format == other.format && generateTheMips == other.generateTheMips &&
+		(path == other.path || path.getFileName(false) == other.path.getFileName(false));
+}
+
+std::string TextureSource::getTextureName(bool includeExtension) const
+{
+	return path.getFileName(includeExtension);
 }

@@ -7,6 +7,35 @@
 #include "Presentation/Device.h"
 #include "FileManager/FileIO.h"
 
+Texture::Texture() : format(), width(), height(), channels() { }
+
+Texture::Texture(std::vector<LoadedTexture>&& loadedTextures, VkFormat f, uint32_t w, uint32_t h, uint32_t ch)
+	: textureMipChain(std::move(loadedTextures)), format(f), width(w), height(h), channels(ch) { }
+
+void Texture::Init(std::vector<LoadedTexture>&& loadedTextures, VkFormat f, uint32_t w, uint32_t h, uint32_t ch)
+{
+	textureMipChain = std::move(loadedTextures);
+	format = f;
+	width = w;
+	height = h;
+	channels = ch;
+}
+
+bool Texture::hasPixelData() const { return textureMipChain.size() > 0; }
+
+const std::vector<LoadedTexture>& Texture::getMipChain() const { return textureMipChain; }
+
+void Texture::releasePixelData() noexcept
+{
+	for (auto& mip : textureMipChain)
+	{
+		mip.release();
+	}
+	textureMipChain.clear();
+}
+
+Texture::~Texture() { releasePixelData(); }
+
 bool Texture::tryLoadSupportedFormat(Texture& texture, const std::string& path)
 {
 	if (!FileIO::fileExists(path))
@@ -96,7 +125,7 @@ bool Texture::stbiLoad(Texture& texture, const std::string& path)
 	}
 
 	std::vector<LoadedTexture> textureData;
-	textureData.emplace_back(pixels, static_cast<size_t>(width) * static_cast<size_t>(height) * 4, width, height);
+	textureData.emplace_back(pixels, as_uint32(width) * as_uint32(height) * 4, width, height);
 
 	texture.Init(std::move(textureData), VK_FORMAT_R8G8B8A8_SRGB, as_uint32(width), as_uint32(height), as_uint32(channels));
 	return true;
@@ -228,4 +257,30 @@ void Texture::transitionImageLayout(const Presentation::Device* presentationDevi
 		{
 			Texture::transitionImageLayout(cmd, image, format, oldLayout, newLayout, mipCount);
 		});
+}
+
+void ITextureContainer::copy(void* destination, size_t offset, const void* source, size_t byteSize)
+{
+	destination = (void*)((char*)destination + offset);
+	memcpy(destination, source, byteSize);
+}
+
+MipDesc::MipDesc(uint32_t w, uint32_t h, uint32_t byteSize)
+	: width(w), height(h), imageByteSize(byteSize) { }
+
+LoadedTexture::LoadedTexture(unsigned char* const data, uint32_t byteSize, uint32_t width, uint32_t height)
+	: pixels(data, data + byteSize), imageByteSize(byteSize), width(width), height(height) { }
+
+uint32_t LoadedTexture::getByteSize() const { return as_uint32(imageByteSize); }
+
+MipDesc LoadedTexture::getDimensions() const { return MipDesc(width, height, imageByteSize); }
+
+void LoadedTexture::copyToMappedBuffer(void* destination, size_t offset) const { copy(destination, offset, pixels.data(), imageByteSize); }
+
+void LoadedTexture::release() noexcept
+{
+	if (pixels.size() > 0 && imageByteSize > 0)
+	{
+		pixels.clear();
+	}
 }

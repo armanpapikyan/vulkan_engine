@@ -339,3 +339,5 @@ bool Mesh::operator==(const Mesh& other) const
 
 	return true;
 }
+
+bool Mesh::operator!=(const Mesh& other) const { return !(*this == other); }

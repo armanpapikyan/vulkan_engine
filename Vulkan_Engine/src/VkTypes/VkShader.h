@@ -14,17 +14,8 @@ struct VkShader
 
 	static void ensureDefaultShader(VkDevice device);
 
-	//static bool findShader(std::string shaderName);
-	static const VkShader* findShader(uint32_t identifier) { return identifier < globalShaderList.size() ? globalShaderList[identifier].get() : nullptr; }
-	static const VkShader* createGlobalShader(VkDevice device, const ShaderSource& source) 
-	{
-		insertShaderToGlobalList
-		(
-			device, VkShader(device, source)
-		);
-
-		return globalShaderList.back().get();
-	}
+	static const VkShader* findShader(uint32_t identifier);
+	static const VkShader* createGlobalShader(VkDevice device, const ShaderSource& source);
 
 	void release(VkDevice device);
 	static void releaseGlobalShaderList(VkDevice device);
@@ -32,8 +23,5 @@ struct VkShader
 private:
 	inline static std::vector<std::unique_ptr<VkShader>> globalShaderList;
 
-	static void insertShaderToGlobalList(VkDevice device, VkShader shader)
-	{
-		globalShaderList.push_back(MAKEUNQ<VkShader>(std::move(shader)));
-	}
+	static void insertShaderToGlobalList(VkDevice device, VkShader shader);
 };

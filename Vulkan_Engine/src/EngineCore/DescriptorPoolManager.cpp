@@ -5,6 +5,8 @@ DescriptorPoolManager::DescriptorPoolManager(VkDevice device) : m_device(device)
 
 DescriptorPoolManager* DescriptorPoolManager::getInstance() { return m_instance; }
 
+bool DescriptorPoolManager::isInitialized() const { return true; }
+
 VkDescriptorPool DescriptorPoolManager::createNewPool(uint32_t size)
 {
 	VkDescriptorPool pool{};

@@ -48,6 +48,20 @@ void VkShader::ensureDefaultShader(VkDevice device)
 	}
 }
 
+//static bool findShader(std::string shaderName);
+
+const VkShader* VkShader::findShader(uint32_t identifier) { return identifier < globalShaderList.size() ? globalShaderList[identifier].get() : nullptr; }
+
+const VkShader* VkShader::createGlobalShader(VkDevice device, const ShaderSource& source)
+{
+	insertShaderToGlobalList
+	(
+		device, VkShader(device, source)
+	);
+
+	return globalShaderList.back().get();
+}
+
 void VkShader::releaseGlobalShaderList(VkDevice device)
 {
 	if (globalShaderList.size() == 0)
@@ -59,4 +73,9 @@ void VkShader::releaseGlobalShaderList(VkDevice device)
 	}
 
 	globalShaderList.clear();
+}
+
+void VkShader::insertShaderToGlobalList(VkDevice device, VkShader shader)
+{
+	globalShaderList.push_back(MAKEUNQ<VkShader>(std::move(shader)));
 }

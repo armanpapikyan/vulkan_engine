@@ -29,7 +29,6 @@ struct SubMesh
 	void serialize(Archive& ar, const unsigned int version);
 
 	bool operator ==(const SubMesh& other) const;
-
 	bool operator !=(const SubMesh& other) const;
 };
 
@@ -68,6 +67,7 @@ public:
 	void serialize(Archive& ar, const unsigned int version);
 
 	bool operator==(const Mesh& other) const;
+	bool operator!=(const Mesh& other) const;
 
 private:
 	friend class boost::serialization::access;

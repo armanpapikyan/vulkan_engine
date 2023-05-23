@@ -19,11 +19,7 @@ struct ITextureContainer
 	virtual void copyToMappedBuffer(void* destination, size_t offset = 0) const = 0;
 
 protected:
-	static void copy(void* destination, size_t offset, const void* source, size_t byteSize)
-	{
-		destination = (void*)((char*)destination + offset);
-		memcpy(destination, source, byteSize);
-	}
+	static void copy(void* destination, size_t offset, const void* source, size_t byteSize);
 };
 
 struct MipDesc
@@ -31,28 +27,20 @@ struct MipDesc
 	uint32_t width, height;
 	uint32_t imageByteSize;
 
-	MipDesc(uint32_t w, uint32_t h, uint32_t byteSize)
-		: width(w), height(h), imageByteSize(byteSize) { }
+	MipDesc(uint32_t w, uint32_t h, uint32_t byteSize);
 };
 
 struct LoadedTexture : ITextureContainer
 {
 	LoadedTexture(LoadedTexture&& texture) = default;
 	LoadedTexture(const LoadedTexture& other) = default;
-	LoadedTexture(unsigned char* const data, uint32_t byteSize, uint32_t width, uint32_t height)
-		: pixels(data, data + byteSize), imageByteSize(byteSize), width(width), height(height) { }
+	LoadedTexture(unsigned char* const data, uint32_t byteSize, uint32_t width, uint32_t height);
 
-	uint32_t getByteSize() const override { return as_uint32(imageByteSize); }
-	MipDesc getDimensions() const { return MipDesc(width, height, imageByteSize); }
-	void copyToMappedBuffer(void* destination, size_t offset = 0) const override { copy(destination, offset, pixels.data(), imageByteSize); }
+	uint32_t getByteSize() const override;
+	MipDesc getDimensions() const;
+	void copyToMappedBuffer(void* destination, size_t offset = 0) const override;
 
-	void release() noexcept
-	{
-		if (pixels.size() > 0 && imageByteSize > 0)
-		{
-			pixels.clear();
-		}
-	}
+	void release() noexcept;
 
 private:
 	std::vector<unsigned char> pixels;
@@ -63,29 +51,14 @@ private:
 
 struct Texture
 {
-	Texture() : format(), width(), height(), channels() { }
-	Texture(std::vector<LoadedTexture>&& loadedTextures, VkFormat f, uint32_t w, uint32_t h, uint32_t ch)
-		: textureMipChain(std::move(loadedTextures)), format(f), width(w), height(h), channels(ch) { }
+	Texture();
+	Texture(std::vector<LoadedTexture>&& loadedTextures, VkFormat f, uint32_t w, uint32_t h, uint32_t ch);
 
-	void Init(std::vector<LoadedTexture>&& loadedTextures, VkFormat f, uint32_t w, uint32_t h, uint32_t ch)
-	{
-		textureMipChain = std::move(loadedTextures);
-		format = f;
-		width = w;
-		height = h;
-		channels = ch;
-	}
+	void Init(std::vector<LoadedTexture>&& loadedTextures, VkFormat f, uint32_t w, uint32_t h, uint32_t ch);
 
-	bool hasPixelData() const { return textureMipChain.size() > 0; }
-	const std::vector<LoadedTexture>& getMipChain() const { return textureMipChain; }
-	void releasePixelData() noexcept
-	{
-		for (auto& mip : textureMipChain)
-		{
-			mip.release();
-		}
-		textureMipChain.clear();
-	}
+	bool hasPixelData() const;
+	const std::vector<LoadedTexture>& getMipChain() const;
+	void releasePixelData() noexcept;
 
 	std::vector<LoadedTexture> textureMipChain;
 	VkFormat format;
@@ -93,7 +66,7 @@ struct Texture
 	uint32_t height;
 	uint32_t channels;
 
-	~Texture() { releasePixelData(); }
+	~Texture();
 
 	constexpr static float c_anisotropySamples = 4.0f;
 

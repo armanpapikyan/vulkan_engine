@@ -9,7 +9,7 @@ public:
 	DescriptorPoolManager(VkDevice device);
 	static DescriptorPoolManager* getInstance();
 
-	virtual bool isInitialized() const override { return true; }
+	virtual bool isInitialized() const override;
 	VkDescriptorPool createNewPool(uint32_t size);
 
 	void release();

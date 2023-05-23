@@ -176,52 +176,6 @@ namespace PipelineConstruction
 		bool m_isValid;
 	};
 
-	static bool createPipeline(VkPipeline& pipelineInstance, const VkPipelineLayout pipelineLayout, const VkDevice device, const VkRenderPass renderPass,
-		VkExtent2D swapchainExtent, const VkShader& shader, const MeshDescriptor* descriptor, FaceCulling faceCullingMode, bool depthStencilAttachement)
-	{
-		VkGraphicsPipelineCreateInfo pipelineCreateInfo{};
-
-		auto pipeline = GraphicsPipelineCI(pipelineLayout);
-		auto renderPassState = RenderPass(renderPass);
-
-		auto vertStage = ShaderStage(shader.vertShader, ShaderStage::SupportedStages::Vertex);
-		auto fragStage = ShaderStage(shader.fragShader, ShaderStage::SupportedStages::Fragment);
-		PipelineStageCollection allStages(&vertStage, &fragStage);
-
-		auto vertexInputState = VertexInputState(descriptor);
-		auto inputAssembly = InputAssembly();
-		auto viewportState = ViewportState(swapchainExtent);
-		auto rasterizationState = RasterizationState(faceCullingMode);
-		auto multisampleState = MultisampleState();
-		auto depthStencilState = DepthStencilState(depthStencilAttachement);
-		auto colorBlendState = ColorBlendState();
-
-		auto dynamicState = DynamicState();
-
-		ComponentCreateInfoAbstract* allComponents[]{
-			&pipeline,
-			&renderPassState,
-
-			// Programmable shader stages
-			&allStages,
-
-			// Fixed function stages
-			&vertexInputState,
-			&inputAssembly,
-			&viewportState,
-			&rasterizationState,
-			&multisampleState,
-			&depthStencilState,
-			&colorBlendState,
-
-			&dynamicState
-		};
-
-		for (auto& createInfo : allComponents)
-		{
-			createInfo->submitIfValid(pipelineCreateInfo);
-		}
-
-		return vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &pipelineInstance) == VK_SUCCESS;
-	}
+	bool createPipeline(VkPipeline& pipelineInstance, const VkPipelineLayout pipelineLayout, const VkDevice device, const VkRenderPass renderPass,
+		VkExtent2D swapchainExtent, const VkShader& shader, const MeshDescriptor* descriptor, FaceCulling faceCullingMode, bool depthStencilAttachement);
 }

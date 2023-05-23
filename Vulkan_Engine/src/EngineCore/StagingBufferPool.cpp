@@ -176,3 +176,13 @@ bool StagingBufferPool::indirection_allocateBuffer(StgBuffer& buffer, uint32_t s
 	m_stats.createdBuffer += isSuccess;
 	return isSuccess;
 }
+
+StagingBufferPool::Stats::Stats() : freeCount(0), claimCount(0),
+reusedMatchingBuffer(0), reusedBiggerBuffer(0),
+createdBuffer(0), destroyedBuffer(0) { }
+
+void StagingBufferPool::Stats::print()
+{
+	printf("Staging buffer stats: (Created new %i, reallocated to grow %i), (Reuse matching size %i, bigger size %i), (Claims %i, frees %i).\n",
+		createdBuffer - destroyedBuffer, destroyedBuffer, reusedMatchingBuffer, reusedBiggerBuffer, claimCount, freeCount);
+}

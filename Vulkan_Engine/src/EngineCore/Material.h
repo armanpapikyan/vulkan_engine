@@ -14,14 +14,9 @@ struct TextureSource
 	// Sampler type
 	// Other params
 
-	TextureSource(std::string&& path, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB, bool generateMips = true) : path(std::move(path)), format(format), generateTheMips(generateMips) { }
-	// TextureSource(const std::string& path, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB, bool generateMips = true) : path(path), format(format), generateTheMips(generateMips) { }
+	TextureSource(std::string&& path, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB, bool generateMips = true);
 
-	bool operator ==(const TextureSource& other) const
-	{
-		return format == other.format && generateTheMips == other.generateTheMips &&
-			(path == other.path || path.getFileName(false) == other.path.getFileName(false));
-	}
+	bool operator ==(const TextureSource& other) const;
 
 	template<class Archive>
 	void serialize(Archive& ar, const unsigned int version)
@@ -31,15 +26,12 @@ struct TextureSource
 		ar& generateTheMips;
 	}
 
-	std::string getTextureName(bool includeExtension) const
-	{
-		return path.getFileName(includeExtension);
-	}
+	std::string getTextureName(bool includeExtension) const;
 
 private:
 	friend class boost::serialization::access;
 	friend class Material;
-	TextureSource() : path(), format(VK_FORMAT_R8G8B8A8_SRGB), generateTheMips(true) { }
+	TextureSource();
 };
 
 namespace std 
@@ -74,32 +66,26 @@ struct VkShader;
 class Material
 {
 public:
-	Material(uint32_t shaderIdentifier, const TextureSource& source) : 
-		m_shaderIdentifier(shaderIdentifier), m_textureParameters(source) { calculateHash(); }
-	Material(uint32_t shaderIdentifier, TextureSource&& source) :
-		m_shaderIdentifier(shaderIdentifier), m_textureParameters(source) { calculateHash(); }
+	Material(uint32_t shaderIdentifier, const TextureSource& source);
+	Material(uint32_t shaderIdentifier, TextureSource&& source);
 
-	const TextureSource& getTextureSource() const { return m_textureParameters; }
-	uint32_t getShaderIdentifier() const { return m_shaderIdentifier; }
-	size_t getHash() const { return m_hash; }
+	const TextureSource& getTextureSource() const;
+	uint32_t getShaderIdentifier() const;
+	size_t getHash() const;
 	
 	void serialize(boost::archive::binary_oarchive& ar, const unsigned int version); // WRITE
 	void serialize(boost::archive::binary_iarchive& ar, const unsigned int version); // READ
 
-	bool operator ==(const Material& other) const
-	{
-		return m_shaderIdentifier == other.m_shaderIdentifier &&
-			m_textureParameters == other.m_textureParameters;
-	}
+	bool operator ==(const Material& other) const;
 
 private:
 	friend class boost::serialization::access;
-	Material() : m_shaderIdentifier(), m_textureParameters() { calculateHash(); }
+	Material();
 
 	uint32_t m_shaderIdentifier;
 	TextureSource m_textureParameters;
 
-	void calculateHash() { m_hash = std::hash<std::string>()(m_textureParameters.path); }
+	void calculateHash();
 	size_t m_hash;
 };
 
@@ -107,7 +93,7 @@ struct VkMaterial
 {
 	VkMaterial(const VkShader& shader, const VkTexture2D& texture, const VkPipeline pipeline, const VkPipelineLayout pipelineLayout, const VkDescriptorSetLayout descriptorSetLayout, std::array<VkDescriptorSet, SWAPCHAIN_IMAGE_COUNT>& descriptorSets);
 
-	const VkMaterialVariant& getMaterialVariant() const { return variant; }
+	const VkMaterialVariant& getMaterialVariant() const;
 	void release(VkDevice device);
 
 	const VkShader* shader;
