@@ -1,4 +1,5 @@
 #pragma once
+#include "Common.h"
 #include "pch.h"
 #include "VertexBinding.h"
 #include "Math/BoundsAABB.h"
@@ -32,6 +33,80 @@ struct SubMesh
 	bool operator !=(const SubMesh& other) const;
 };
 
+struct ProcessedMesh
+{
+	uint32_t getSubmeshCount() const { return as_uint32(m_submeshData->size()); }
+	uint32_t getIndexCount(int index) const { return as_uint32(getSubmesh(index).getIndexCount()); }
+	uint32_t getVertCount() const { return m_vertCount; }
+
+	uint32_t getIndexTotalByteSize(int index) const;
+	uint32_t getVertexTotalByteSize() const;
+
+	const void* getIndexMemory(int index) const { return getSubmesh(index).m_indices.data(); }
+	const void* getVertexMemory() const { return m_interleavedVertexData.data(); }
+
+	void Init(uint64_t hash, size_t vertexCount, size_t interleavedBufferSize, const std::vector<SubMesh>& submeshes)
+	{
+		m_hash = hash;
+		m_vertCount = as_uint32(vertexCount);
+		m_submeshData = &submeshes;
+
+		m_interleavedVertexData.clear();
+		m_interleavedVertexData.resize(interleavedBufferSize);
+	}
+
+	void copyInterleavedNoCheck(const void* src, size_t elementByteSize, size_t iterStride, size_t offset)
+	{
+		int i = 0;
+		auto it = m_interleavedVertexData.begin();
+		auto end = m_interleavedVertexData.end();
+		std::advance(it, offset);
+
+		while (it != end)
+		{
+			memcpy(&(*it), (char*)src + i * elementByteSize, elementByteSize);
+			if (std::distance(it, end) < static_cast<ptrdiff_t>(iterStride))
+				break;
+
+			std::advance(it, iterStride);
+			++i;
+		}
+	}
+
+private:
+	uint64_t m_hash;
+
+	uint32_t m_vertCount;
+	std::vector<float> m_interleavedVertexData;
+	const std::vector<SubMesh>* m_submeshData;
+
+	const SubMesh& getSubmesh(int index) const { return m_submeshData->at(index); }
+};
+
+struct GraphicsMemoryAllocator
+{
+	GraphicsMemoryAllocator(const Presentation::Device* presentationDevice, VmaAllocator& vmaAllocator, StagingBufferPool& stagingBufferPool);
+
+	bool createGraphicsMesh(VkMesh& graphicsMesh, const ProcessedMesh& processedMesh);
+
+	void copy(uint32_t totalSizeBytes, const void* source, VkBuffer bufferDestination);
+
+private:
+
+	template<typename T>
+	void mapAndCopyBuffer(VmaAllocator vmaAllocator, VmaAllocation memRange, const T* source, size_t totalByteSize)
+	{
+		void* data;
+		vmaMapMemory(vmaAllocator, memRange, &data);
+		memcpy(data, source, totalByteSize);
+		vmaUnmapMemory(vmaAllocator, memRange);
+	}
+
+	StagingBufferPool* m_stagingPool;
+	VmaAllocator* m_vmaAllocator;
+	const Presentation::Device* m_presentationDevice;
+};
+
 struct Mesh
 {
 public:
@@ -43,15 +118,9 @@ public:
 	void clear();
 	bool isValid();
 
-	template<typename T>
-	void mapAndCopyBuffer(VmaAllocator vmaAllocator, VmaAllocation memRange, const T* source, size_t elementCount, size_t totalByteSize, const char* message);
-
 	static bool validateOptionalBufferSize(size_t vectorSize, size_t vertexCount, char const* name);
-	static void copyInterleavedNoCheck(std::vector<float>& interleavedVertexData, const void* src, size_t elementByteSize, size_t iterStride, size_t offset);
 
-	bool allocateGraphicsMesh(VkMesh& graphicsMesh, VmaAllocator vmaAllocator, const Presentation::Device* presentationDevice, StagingBufferPool& stagingPool);
-	bool allocateIndexAttributes(VkMesh& graphicsMesh, const SubMesh& submesh, VmaAllocator vmaAllocator, const Presentation::Device* presentationDevice, StagingBufferPool& stagingPool);
-	bool allocateVertexAttributes(VkMesh& graphicsMesh, const VmaAllocator& vmaAllocator, const Presentation::Device* presentationDevice, StagingBufferPool& stagingPool);
+	bool createProcessedMesh(ProcessedMesh& processedMesh);
 
 	void makeFace(glm::vec3 pivot, glm::vec3 up, glm::vec3 right, MeshDescriptor::TVertexIndices firstIndex);
 	static Mesh getPrimitiveCube();
@@ -81,8 +150,8 @@ private:
 
 	std::vector<SubMesh> m_submeshes;
 
-	MeshDescriptor metaData;
-	void* vectors[MeshDescriptor::descriptorCount];
+	MeshDescriptor m_metaData;
+	void* m_vectors[MeshDescriptor::descriptorCount];
 
 	void updateMetaData();
 };

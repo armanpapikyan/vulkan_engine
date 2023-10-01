@@ -239,9 +239,13 @@ void Scene::createGraphicsRepresentation(VkDescriptorPool descPool)
 
 	{
 		ProfileMarker _("Scene::Create_Graphics_Meshes");
+		ProcessedMesh processedMesh;
+
+		auto vmaAllocator = VkMemoryAllocator::getInstance()->m_allocator;
+		GraphicsMemoryAllocator alloc(m_presentationDevice, vmaAllocator, stagingBufPool);
+
 		/* ================= CREATE GRAPHICS MESHES ================*/
 		const auto& defaultMeshDescriptor = Mesh::defaultMeshDescriptor;
-		auto vmaAllocator = VkMemoryAllocator::getInstance()->m_allocator;
 		const auto count = m_meshes.size();
 
 		m_graphicsMeshes.reserve(count);
@@ -249,9 +253,10 @@ void Scene::createGraphicsRepresentation(VkDescriptorPool descPool)
 		for (auto& ids : m_rendererIDs)
 		{
 			auto& mesh = m_meshes[ids.meshID];
+			mesh.createProcessedMesh(processedMesh);
 
 			auto newGraphicsMesh = VkMesh();
-			if (!mesh.allocateGraphicsMesh(newGraphicsMesh, vmaAllocator, m_presentationDevice, stagingBufPool) || !mesh.isValid())
+			if (!alloc.createGraphicsMesh(newGraphicsMesh, processedMesh) || !mesh.isValid())
 				continue;
 
 			if (defaultMeshDescriptor != mesh.getMeshDescriptor())

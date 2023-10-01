@@ -182,6 +182,6 @@ Mesh Mesh::getPrimitiveTriangle()
 	return Mesh(positions, uvs, normals, colors, indices);
 }
 
-const MeshDescriptor& Mesh::getMeshDescriptor() const { return metaData; }
+const MeshDescriptor& Mesh::getMeshDescriptor() const { return m_metaData; }
 
 const BoundsAABB* Mesh::getBounds(uint32_t submeshIndex) const { return submeshIndex >= 0 && submeshIndex < m_submeshes.size() ? &m_submeshes[submeshIndex].m_bounds : nullptr; }
