@@ -3,10 +3,10 @@
 #include "Common.h"
 #include "Renderer.h"
 #include "Transform.h"
-#include "VkTypes/VkMeshRenderer.h"
 
 struct Mesh;
 struct VkMesh;
+struct ProcessedMesh;
 
 class Material;
 struct TextureSource;
@@ -48,11 +48,14 @@ private:
 	const Presentation::Device* m_presentationDevice;
 	Presentation::PresentationTarget* m_presentationTarget;
 
-	// Serialized scene data
+	// Not serialized, serves as intermediary
 	std::vector<Mesh> m_meshes;
+
+	// Serialized scene data
 	std::vector<Material> m_materials;
 	std::vector<Renderer> m_rendererIDs;
 	std::vector<Transform> m_transforms;
+	std::vector<ProcessedMesh> m_processedMeshes;
 
 	// Graphics data
 	std::vector<VkMeshRenderer> m_renderers;

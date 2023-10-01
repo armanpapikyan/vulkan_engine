@@ -5,6 +5,7 @@
 #include "VkTypes/VkMesh.h"
 #include "VkTypes/VkTexture.h"
 #include "VkTypes/VkShader.h"
+#include "VkTypes/VkMeshRenderer.h"
 
 #include "Presentation/Device.h"
 #include "Presentation/PresentationTarget.h"
@@ -28,8 +29,8 @@ constexpr bool force_serialize_from_origin = false;
 bool Scene::load(VkDescriptorPool descPool)
 {
 	//const auto modelOptions = Directories::getModels_DebrovicSponza();
-	//const auto modelOptions = Directories::getModels_IntelSponza();
-	const auto modelOptions = Directories::getModels_CrytekSponza();
+	const auto modelOptions = Directories::getModels_IntelSponza();
+	//const auto modelOptions = Directories::getModels_CrytekSponza();
 
 	Path fullPath;
 	/*****************************				IMPORT					****************************************/
@@ -120,10 +121,11 @@ void Scene::serialize(Archive& ar, const unsigned int version)
 {
 	ProfileMarker _("Scene::Serialize");
 
-	ar& m_meshes
+	ar
 		& m_materials
 		& m_rendererIDs
-		& m_transforms;
+		& m_transforms
+		& m_processedMeshes;
 }
 
 template<class Archive>
@@ -154,6 +156,15 @@ void Renderer::serialize(Archive& ar, const unsigned int version)
 	ar& transformID;
 }
 
+template<class Archive>
+void ProcessedMesh::serialize(Archive& ar, const unsigned int version)
+{
+	ar& m_hash;
+	ar& m_vertCount;
+	ar& m_interleavedVertexData;
+	ar& m_submeshData;
+}
+
 bool Scene::tryInitializeFromFile(const Loader::ModelLoaderOptions& modelOptions)
 {
 	const auto& path = modelOptions.filePath;
@@ -172,28 +183,38 @@ bool Scene::tryInitializeFromFile(const Loader::ModelLoaderOptions& modelOptions
 		return true;
 	}
 
+	bool parsedSuccessful = false;
 	/* ================ READ FROM GLTF =============== */
 	if (FileIO::fileExists(path, ".gltf"))
 	{
 		ProfileMarker _("Loader::ASSIMP");
-		return Loader::load_AssimpImplementation(m_meshes, m_materials, m_rendererIDs, m_transforms, modelOptions);
+		parsedSuccessful = Loader::load_AssimpImplementation(m_meshes, m_materials, m_rendererIDs, m_transforms, modelOptions);
 	}
 
 	/* ================ READ FROM OBJ =============== */
 	if (FileIO::fileExists(path, ".obj"))
 	{
 		ProfileMarker _("Loader::Custom_OBJ");
-		return Loader::loadOBJ_Implementation(m_meshes, m_materials, m_rendererIDs, m_transforms, modelOptions);
+		parsedSuccessful = Loader::loadOBJ_Implementation(m_meshes, m_materials, m_rendererIDs, m_transforms, modelOptions);
 	}
 
 	// Fallback
 	if (FileIO::fileExists(path))
 	{
 		ProfileMarker _("Loader::ASSIMP");
-		return Loader::load_AssimpImplementation(m_meshes, m_materials, m_rendererIDs, m_transforms, modelOptions);
+		parsedSuccessful = Loader::load_AssimpImplementation(m_meshes, m_materials, m_rendererIDs, m_transforms, modelOptions);
 	}
 
-	return false;
+	if (parsedSuccessful)
+	{
+		m_processedMeshes.resize(m_meshes.size());
+		for (size_t i = 0, n = m_meshes.size(); i < n; i++)
+		{
+			m_meshes[i].createProcessedMesh(m_processedMeshes[i]);
+		}
+	}
+
+	return parsedSuccessful;
 }
 
 void Scene::createGraphicsRepresentation(VkDescriptorPool descPool)
@@ -239,31 +260,29 @@ void Scene::createGraphicsRepresentation(VkDescriptorPool descPool)
 
 	{
 		ProfileMarker _("Scene::Create_Graphics_Meshes");
-		ProcessedMesh processedMesh;
-
 		auto vmaAllocator = VkMemoryAllocator::getInstance()->m_allocator;
 		GraphicsMemoryAllocator alloc(m_presentationDevice, vmaAllocator, stagingBufPool);
 
 		/* ================= CREATE GRAPHICS MESHES ================*/
 		const auto& defaultMeshDescriptor = Mesh::defaultMeshDescriptor;
-		const auto count = m_meshes.size();
+		const auto count = m_processedMeshes.size();
 
 		m_graphicsMeshes.reserve(count);
 		m_renderers.reserve(count);
 		for (auto& ids : m_rendererIDs)
 		{
-			auto& mesh = m_meshes[ids.meshID];
-			mesh.createProcessedMesh(processedMesh);
+			//auto& mesh = m_meshes[ids.meshID];
+			const auto& processedMesh = m_processedMeshes[ids.meshID];
 
 			auto newGraphicsMesh = VkMesh();
-			if (!alloc.createGraphicsMesh(newGraphicsMesh, processedMesh) || !mesh.isValid())
+			if (!alloc.createGraphicsMesh(newGraphicsMesh, processedMesh))// || !mesh.isValid())
 				continue;
 
-			if (defaultMeshDescriptor != mesh.getMeshDescriptor())
-			{
-				printf("Mesh metadata does not match - can not bind to the same pipeline.\n");
-				continue;
-			}
+			//if (defaultMeshDescriptor != mesh.getMeshDescriptor())
+			//{
+			//	printf("Mesh metadata does not match - can not bind to the same pipeline.\n");
+			//	continue;
+			//}
 			m_graphicsMeshes.emplace_back(std::move(newGraphicsMesh));
 
 			uint32_t submeshIndex = 0;
@@ -279,10 +298,11 @@ void Scene::createGraphicsRepresentation(VkDescriptorPool descPool)
 				m_renderers.emplace_back(
 					&m_graphicsMeshes.back(), submeshIndex, &m_materials[materialIDs],
 					&m_graphicsMaterials[loadedTextures[texPath]]->getMaterialVariant(),
-					mesh.getBounds(submeshIndex), &m_transforms[ids.transformID]
+					processedMesh.getBounds(submeshIndex), &m_transforms[ids.transformID]
 				);
 				++submeshIndex;
 			}
+
 		}
 	}
 	stagingBufPool.releaseAllResources();

@@ -120,7 +120,7 @@ bool MeshDescriptor::operator ==(const MeshDescriptor& other) const
 
 bool MeshDescriptor::operator !=(const MeshDescriptor& other) const { return !(*this == other); }
 
-bool Mesh::createProcessedMesh(ProcessedMesh& processedMesh)
+bool Mesh::createProcessedMesh(ProcessedMesh& processedMesh) const
 {
 	size_t vertCount = m_positions.size();
 
@@ -298,6 +298,6 @@ void GraphicsMemoryAllocator::copy(uint32_t totalSizeBytes, const void* source, 
 	m_stagingPool->freeBuffer(stagingBuffer);
 }
 
-uint32_t ProcessedMesh::getIndexTotalByteSize(int index) const { return vectorsizeof(getSubmesh(index).m_indices); }
+uint32_t ProcessedMesh::getIndexTotalByteSize(uint32_t index) const { return vectorsizeof(getSubmesh(index).m_indices); }
 
 uint32_t ProcessedMesh::getVertexTotalByteSize() const { return vectorsizeof(m_interleavedVertexData); }

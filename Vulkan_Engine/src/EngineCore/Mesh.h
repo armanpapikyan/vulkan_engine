@@ -35,21 +35,23 @@ struct SubMesh
 
 struct ProcessedMesh
 {
-	uint32_t getSubmeshCount() const { return as_uint32(m_submeshData->size()); }
-	uint32_t getIndexCount(int index) const { return as_uint32(getSubmesh(index).getIndexCount()); }
+	uint32_t getSubmeshCount() const { return as_uint32(m_submeshData.size()); }
+	uint32_t getIndexCount(uint32_t index) const { return as_uint32(getSubmesh(index).getIndexCount()); }
 	uint32_t getVertCount() const { return m_vertCount; }
 
-	uint32_t getIndexTotalByteSize(int index) const;
+	uint32_t getIndexTotalByteSize(uint32_t index) const;
 	uint32_t getVertexTotalByteSize() const;
 
-	const void* getIndexMemory(int index) const { return getSubmesh(index).m_indices.data(); }
+	const void* getIndexMemory(uint32_t index) const { return getSubmesh(index).m_indices.data(); }
 	const void* getVertexMemory() const { return m_interleavedVertexData.data(); }
+
+	const BoundsAABB* getBounds(uint32_t index) const { return &getSubmesh(index).m_bounds; }
 
 	void Init(uint64_t hash, size_t vertexCount, size_t interleavedBufferSize, const std::vector<SubMesh>& submeshes)
 	{
 		m_hash = hash;
 		m_vertCount = as_uint32(vertexCount);
-		m_submeshData = &submeshes;
+		m_submeshData = submeshes;
 
 		m_interleavedVertexData.clear();
 		m_interleavedVertexData.resize(interleavedBufferSize);
@@ -73,14 +75,40 @@ struct ProcessedMesh
 		}
 	}
 
+	template<class Archive>
+	void serialize(Archive& ar, const unsigned int version);
+
+	bool operator ==(const ProcessedMesh& other) const 
+	{
+		assert(getSubmeshCount() == other.getSubmeshCount());
+		assert(getVertCount() == other.getVertCount());
+		assert(getVertexTotalByteSize() == other.getVertexTotalByteSize());
+		assert(memcmp(getVertexMemory(), other.getVertexMemory(), getVertexTotalByteSize()) == 0);
+
+		if (getSubmeshCount() != other.getSubmeshCount() || getVertCount() != other.getVertCount() ||
+			getVertexTotalByteSize() != other.getVertexTotalByteSize() ||
+			memcmp(getVertexMemory(), other.getVertexMemory(), getVertexTotalByteSize()) != 0)
+			return false;
+
+		for (uint32_t i = 0; i < getSubmeshCount(); i++)
+		{
+			if (getSubmesh(i) != other.getSubmesh(i))
+				return false;
+		}
+
+		return true;
+	}
+	
+	bool operator !=(const ProcessedMesh& other) const { return !(*this == other); }
+
 private:
 	uint64_t m_hash;
 
 	uint32_t m_vertCount;
 	std::vector<float> m_interleavedVertexData;
-	const std::vector<SubMesh>* m_submeshData;
+	std::vector<SubMesh> m_submeshData;
 
-	const SubMesh& getSubmesh(int index) const { return m_submeshData->at(index); }
+	const SubMesh& getSubmesh(uint32_t index) const { return m_submeshData[index]; }
 };
 
 struct GraphicsMemoryAllocator
@@ -120,7 +148,7 @@ public:
 
 	static bool validateOptionalBufferSize(size_t vectorSize, size_t vertexCount, char const* name);
 
-	bool createProcessedMesh(ProcessedMesh& processedMesh);
+	bool createProcessedMesh(ProcessedMesh& processedMesh) const;
 
 	void makeFace(glm::vec3 pivot, glm::vec3 up, glm::vec3 right, MeshDescriptor::TVertexIndices firstIndex);
 	static Mesh getPrimitiveCube();
