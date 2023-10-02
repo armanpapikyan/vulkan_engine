@@ -49,3 +49,13 @@ private:
 	inline static std::string workingModel_relative = INTEL_SPONZA_GLTF;
 	inline static std::string additiveModel_relative = INTEL_SPONZA_CURTAINS_GLTF;
 };
+
+struct ApplicationParameters
+{
+	Path applicationPath;
+	Path applicationDirectory;
+
+	ApplicationParameters(int argc, char* argv[]);
+
+	std::string getApplicationPathFromCommandLine(char commandLineArgument[]);
+};

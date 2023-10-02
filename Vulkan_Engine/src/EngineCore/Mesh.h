@@ -144,7 +144,7 @@ public:
 	Mesh(std::vector<glm::vec3>& positions, std::vector<glm::vec2>& uvs, std::vector<glm::vec3>& normals, std::vector<glm::vec3>& colors, SubMesh&& submesh);
 
 	void clear();
-	bool isValid();
+	bool isValid() const;
 
 	static bool validateOptionalBufferSize(size_t vectorSize, size_t vertexCount, char const* name);
 

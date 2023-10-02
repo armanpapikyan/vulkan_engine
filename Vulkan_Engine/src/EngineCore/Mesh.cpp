@@ -68,7 +68,7 @@ bool Mesh::validateOptionalBufferSize(size_t vectorSize, size_t vertexCount, cha
 	return true;
 }
 
-bool Mesh::isValid()
+bool Mesh::isValid() const
 {
 	const auto n = m_positions.size();
 
@@ -122,6 +122,8 @@ bool MeshDescriptor::operator !=(const MeshDescriptor& other) const { return !(*
 
 bool Mesh::createProcessedMesh(ProcessedMesh& processedMesh) const
 {
+	assert(defaultMeshDescriptor == getMeshDescriptor() && "Mesh metadata does not match - can not bind to the same pipeline.\n");
+	assert(isValid());
 	size_t vertCount = m_positions.size();
 
 	constexpr size_t descriptorCount = MeshDescriptor::descriptorCount;

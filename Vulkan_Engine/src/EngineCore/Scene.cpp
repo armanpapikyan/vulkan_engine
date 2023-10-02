@@ -271,18 +271,12 @@ void Scene::createGraphicsRepresentation(VkDescriptorPool descPool)
 		m_renderers.reserve(count);
 		for (auto& ids : m_rendererIDs)
 		{
-			//auto& mesh = m_meshes[ids.meshID];
 			const auto& processedMesh = m_processedMeshes[ids.meshID];
 
 			auto newGraphicsMesh = VkMesh();
-			if (!alloc.createGraphicsMesh(newGraphicsMesh, processedMesh))// || !mesh.isValid())
+			if (!alloc.createGraphicsMesh(newGraphicsMesh, processedMesh))
 				continue;
 
-			//if (defaultMeshDescriptor != mesh.getMeshDescriptor())
-			//{
-			//	printf("Mesh metadata does not match - can not bind to the same pipeline.\n");
-			//	continue;
-			//}
 			m_graphicsMeshes.emplace_back(std::move(newGraphicsMesh));
 
 			uint32_t submeshIndex = 0;
