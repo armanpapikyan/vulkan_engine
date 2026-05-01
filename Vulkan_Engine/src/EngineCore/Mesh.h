@@ -47,59 +47,15 @@ struct ProcessedMesh
 
 	const BoundsAABB* getBounds(uint32_t index) const { return &getSubmesh(index).m_bounds; }
 
-	void Init(uint64_t hash, size_t vertexCount, size_t interleavedBufferSize, const std::vector<SubMesh>& submeshes)
-	{
-		m_hash = hash;
-		m_vertCount = as_uint32(vertexCount);
-		m_submeshData = submeshes;
+	void Init(uint64_t hash, size_t vertexCount, size_t interleavedBufferSize, const std::vector<SubMesh>& submeshes);
 
-		m_interleavedVertexData.clear();
-		m_interleavedVertexData.resize(interleavedBufferSize);
-	}
-
-	void copyInterleavedNoCheck(const void* src, size_t elementByteSize, size_t iterStride, size_t offset)
-	{
-		int i = 0;
-		auto it = m_interleavedVertexData.begin();
-		auto end = m_interleavedVertexData.end();
-		std::advance(it, offset);
-
-		while (it != end)
-		{
-			memcpy(&(*it), (char*)src + i * elementByteSize, elementByteSize);
-			if (std::distance(it, end) < static_cast<ptrdiff_t>(iterStride))
-				break;
-
-			std::advance(it, iterStride);
-			++i;
-		}
-	}
+	void copyInterleavedNoCheck(const void* src, size_t elementByteSize, size_t iterStride, size_t offset);
 
 	template<class Archive>
 	void serialize(Archive& ar, const unsigned int version);
 
-	bool operator ==(const ProcessedMesh& other) const 
-	{
-		assert(getSubmeshCount() == other.getSubmeshCount());
-		assert(getVertCount() == other.getVertCount());
-		assert(getVertexTotalByteSize() == other.getVertexTotalByteSize());
-		assert(memcmp(getVertexMemory(), other.getVertexMemory(), getVertexTotalByteSize()) == 0);
-
-		if (getSubmeshCount() != other.getSubmeshCount() || getVertCount() != other.getVertCount() ||
-			getVertexTotalByteSize() != other.getVertexTotalByteSize() ||
-			memcmp(getVertexMemory(), other.getVertexMemory(), getVertexTotalByteSize()) != 0)
-			return false;
-
-		for (uint32_t i = 0; i < getSubmeshCount(); i++)
-		{
-			if (getSubmesh(i) != other.getSubmesh(i))
-				return false;
-		}
-
-		return true;
-	}
-	
-	bool operator !=(const ProcessedMesh& other) const { return !(*this == other); }
+	bool operator ==(const ProcessedMesh& other) const;
+	bool operator !=(const ProcessedMesh& other) const;
 
 private:
 	uint64_t m_hash;
