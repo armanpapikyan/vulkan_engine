@@ -31,8 +31,8 @@ constexpr bool force_serialize_from_origin = false;
 bool Scene::load(VkDescriptorPool descPool)
 {
 	//const auto modelOptions = Directories::getModels_DebrovicSponza();
-	const auto modelOptions = Directories::getModels_IntelSponza();
-	//const auto modelOptions = Directories::getModels_CrytekSponza();
+	//const auto modelOptions = Directories::getModels_IntelSponza();
+	const auto modelOptions = Directories::getModels_CrytekSponza();
 
 	Path fullPath;
 	/*****************************				IMPORT					****************************************/
@@ -64,7 +64,7 @@ bool Scene::load(VkDescriptorPool descPool)
 	/*****************************				LOAD BINARY					****************************************/
 	ProfileMarker _("Scene::load");
 
-	const auto binaryLoaderOptions = Loader::ModelLoaderOptions(std::move(fullPath), 1.0);
+	const Loader::ModelLoaderOptions binaryLoaderOptions(std::move(fullPath), 1.0);
 	if (!tryInitializeFromFile(binaryLoaderOptions))
 	{
 		printf("Could not load scene file '%s', it did not match any of the supported formats.\n", binaryLoaderOptions.filePath.c_str());
@@ -123,11 +123,10 @@ void Scene::serialize(Archive& ar, const unsigned int version)
 {
 	ProfileMarker _("Scene::Serialize");
 
-	ar
-		& m_materials
-		& m_rendererIDs
-		& m_transforms
-		& m_processedMeshes;
+	ar& m_materials;
+	ar& m_rendererIDs;
+	ar& m_transforms;
+	ar& m_processedMeshes;
 }
 
 template<class Archive>
@@ -194,14 +193,14 @@ bool Scene::tryInitializeFromFile(const Loader::ModelLoaderOptions& modelOptions
 	}
 
 	/* ================ READ FROM OBJ =============== */
-	if (FileIO::fileExists(path, ".obj"))
+	if (!parsedSuccessful && FileIO::fileExists(path, ".obj"))
 	{
 		ProfileMarker _("Loader::Custom_OBJ");
 		parsedSuccessful = Loader::loadOBJ_Implementation(m_meshes, m_materials, m_rendererIDs, m_transforms, modelOptions);
 	}
 
 	// Fallback
-	if (FileIO::fileExists(path))
+	if (!parsedSuccessful && FileIO::fileExists(path))
 	{
 		ProfileMarker _("Loader::ASSIMP");
 		parsedSuccessful = Loader::load_AssimpImplementation(m_meshes, m_materials, m_rendererIDs, m_transforms, modelOptions);
@@ -221,41 +220,44 @@ bool Scene::tryInitializeFromFile(const Loader::ModelLoaderOptions& modelOptions
 
 void Scene::createGraphicsRepresentation(VkDescriptorPool descPool)
 {
-	std::unordered_map<TextureSource, uint32_t> loadedTextures;
+	std::unordered_set<const TextureSource*> texturesToLoad{};
+	std::unordered_map<const TextureSource*, const VkMaterial*> createdGraphicsMaterials{};
+
+	uint32_t submeshCount = 0;
 	StagingBufferPool stagingBufPool{};
 	{
 		ProfileMarker _("Scene::Create_Graphics_Materials");
 		/* ================= CREATE TEXTURES ================*/
 		/* ================= CREATE GRAPHICS MATERIALS ================*/
-		m_graphicsMaterials.reserve(m_textures.size());
 		auto device = m_presentationDevice->getDevice();
 		for (auto& rendererIDs : m_rendererIDs)
 		{
 			for (auto& matIndex : rendererIDs.materialIDs)
 			{
-				const auto& mat = m_materials[matIndex];
-				const auto& texSrc = mat.getTextureSource();
-				if (loadedTextures.count(texSrc) == 0)
-				{
-					auto size = m_textures.size();
-					m_textures.resize(size + 1);
-					m_graphicsMaterials.resize(size + 1);
-					if (VkTexture2D::tryCreateTexture(m_textures.back(), texSrc, m_presentationDevice, stagingBufPool))
-					{
-						loadedTextures[texSrc] = as_uint32(size);
+				const Material& material = m_materials[matIndex];
+				texturesToLoad.insert(&material.getTextureSource());
 
-						auto* shader = VkShader::findShader(mat.getShaderIdentifier());
-						m_presentationTarget->createGraphicsMaterial(m_graphicsMaterials.back(), device, descPool, shader, m_textures.back().get());
-					}
-					else
-					{
-						rendererIDs.materialIDs = { 0 };
+				submeshCount += 1;
+			}
+		}
+		m_textures.resize(texturesToLoad.size());
+		m_graphicsMaterials.resize(texturesToLoad.size());
 
-						m_textures.resize(size);
-						m_graphicsMaterials.resize(size);
-						printf("The texture at '%s' could not be loaded.\n", texSrc.path.c_str());
-					}
-				}
+		uint32_t index = 0;
+		for (const TextureSource* source : texturesToLoad)
+		{
+			UNQ<VkTexture2D>& texture = m_textures[index];
+			if (VkTexture2D::tryCreateTexture(texture, *source, m_presentationDevice, stagingBufPool))
+			{
+				auto* shader = VkShader::findShader(0);
+				m_presentationTarget->createGraphicsMaterial(m_graphicsMaterials[index], device, descPool, shader, texture.get());
+				createdGraphicsMaterials[source] = m_graphicsMaterials[index].get();
+
+				index += 1;
+			}
+			else
+			{
+				printf("The texture at '%s' could not be loaded.\n", source->path.c_str());
 			}
 		}
 	}
@@ -270,7 +272,7 @@ void Scene::createGraphicsRepresentation(VkDescriptorPool descPool)
 		const auto count = m_processedMeshes.size();
 
 		m_graphicsMeshes.reserve(count);
-		m_renderers.reserve(count);
+		m_renderers.reserve(submeshCount);
 		for (auto& ids : m_rendererIDs)
 		{
 			const auto& processedMesh = m_processedMeshes[ids.meshID];
@@ -284,16 +286,16 @@ void Scene::createGraphicsRepresentation(VkDescriptorPool descPool)
 			uint32_t submeshIndex = 0;
 			for (auto materialIDs : ids.materialIDs)
 			{
-				const auto& texPath = m_materials[materialIDs].getTextureSource();
-				if (!loadedTextures.count(texPath) && loadedTextures[texPath] > 0 && loadedTextures[texPath] < m_graphicsMaterials.size())
+				const auto* texPath = &m_materials[materialIDs].getTextureSource();
+				if (createdGraphicsMaterials.count(texPath) == 0)
 				{
-					printf("SceneLoader - The material not found for '%zu' mesh.\n", ids.meshID);
+					printf("SceneLoader - The material '%s' not found for '%zu' mesh.\n", texPath->path.c_str(), ids.meshID);
 					continue;
 				}
 
 				m_renderers.emplace_back(
 					&m_graphicsMeshes.back(), submeshIndex, &m_materials[materialIDs],
-					&m_graphicsMaterials[loadedTextures[texPath]]->getMaterialVariant(),
+					&createdGraphicsMaterials[texPath]->getMaterialVariant(),
 					processedMesh.getBounds(submeshIndex), &m_transforms[ids.transformID]
 				);
 				++submeshIndex;
