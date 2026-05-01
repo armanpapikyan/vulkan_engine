@@ -1,12 +1,12 @@
 #pragma once
 #include "pch.h"
 #include "Common.h"
-#include "Renderer.h"
-#include "Transform.h"
 
 struct Mesh;
 struct VkMesh;
 struct ProcessedMesh;
+struct Transform;
+struct Renderer;
 
 class Material;
 struct TextureSource;

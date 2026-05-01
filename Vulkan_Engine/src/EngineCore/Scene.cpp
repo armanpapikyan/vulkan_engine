@@ -2,6 +2,8 @@
 #include "Scene.h"
 #include "Mesh.h"
 #include "Material.h"
+#include "Renderer.h"
+#include "Transform.h"
 #include "VkTypes/VkMesh.h"
 #include "VkTypes/VkTexture.h"
 #include "VkTypes/VkShader.h"
